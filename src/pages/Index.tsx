@@ -3,6 +3,7 @@ import { candidates, type CandidateId } from "@/data/candidates";
 import { cn } from "@/lib/utils";
 import { evaluateSmart, type SmartEvaluation } from "@/lib/smartEvaluation";
 import { SmartEvaluationBlock } from "@/components/SmartEvaluationBlock";
+import { PlatformHowToDialog } from "@/components/PlatformHowToDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -104,6 +105,7 @@ const Index = () => {
               <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--candidate-ivan))]" />
               Modo investigación
             </Badge>
+            <PlatformHowToDialog />
             <Button variant="ghost" size="sm" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Fuentes
