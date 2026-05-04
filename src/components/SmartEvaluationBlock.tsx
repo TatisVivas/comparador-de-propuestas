@@ -5,7 +5,7 @@ type SmartEntry = { status: "loading" } | { status: "done"; data: SmartEvaluatio
 export function SmartEvaluationBlock({ entry }: { entry: SmartEntry | undefined }) {
   if (!entry || entry.status === "loading") {
     return (
-      <p className="mt-1.5 text-[11px] text-muted-foreground">Evaluación SMART…</p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">Evaluación S·M·A·T…</p>
     );
   }
 
@@ -21,13 +21,12 @@ export function SmartEvaluationBlock({ entry }: { entry: SmartEntry | undefined 
   return (
     <details className="mt-2 rounded-md border border-border/60 bg-secondary/20 px-2 py-1.5">
       <summary className="cursor-pointer text-[11px] font-medium text-muted-foreground">
-        Evaluación SMART
+        Evaluación S·M·A·T
       </summary>
       <div className="mt-2 space-y-2 border-t border-border/40 pt-2">
         {row("S", "S")}
         {row("M", "M")}
         {row("A", "A")}
-        {row("R", "R")}
         {row("T", "T")}
       </div>
     </details>

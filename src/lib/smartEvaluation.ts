@@ -6,12 +6,11 @@ export interface SmartCriterionScore {
   explanation: string;
 }
 
-/** Resultado completo de evaluateSmart. */
+/** Resultado de evaluateSmart: criterios S, M, A, T (se excluye R por subjetividad). */
 export interface SmartEvaluation {
   S: SmartCriterionScore;
   M: SmartCriterionScore;
   A: SmartCriterionScore;
-  R: SmartCriterionScore;
   T: SmartCriterionScore;
 }
 
@@ -24,7 +23,6 @@ const smartEvaluationSchema = z.object({
   S: criterionSchema,
   M: criterionSchema,
   A: criterionSchema,
-  R: criterionSchema,
   T: criterionSchema,
 });
 
@@ -38,7 +36,7 @@ function oneLine(s: string): string {
 }
 
 function normalizeEvaluation(raw: SmartEvaluation): SmartEvaluation {
-  const keys = ["S", "M", "A", "R", "T"] as const;
+  const keys = ["S", "M", "A", "T"] as const;
   const out = { ...raw };
   for (const k of keys) {
     out[k] = {
@@ -62,13 +60,12 @@ function emptyEvaluation(msg: string): SmartEvaluation {
     S: z,
     M: z,
     A: z,
-    R: z,
     T: z,
   });
 }
 
 /**
- * Evalúa una propuesta con criterios SMART (solo el texto aportado; sin inventar datos externos).
+ * Evalúa una propuesta con criterios S, M, A y T (sin «Relevante», por subjetividad).
  * Si existe `VITE_OPENAI_API_KEY`, usa el modelo configurado vía API OpenAI compatible.
  * Si no, aplica un análisis lingüístico neutro sobre el mismo texto (sin afirmar hechos no presentes).
  */
@@ -101,15 +98,15 @@ async function evaluateSmartWithOpenAI(
 
   const system = `Eres un asistente académico neutral. Evalúa SOLO el texto de la propuesta que recibes.
 No inventes cifras, programas ni compromisos que no aparezcan en el texto.
-Para cada criterio SMART devuelve score entre 0 y 1 y explanation: una sola línea en español, sin sesgo político.
+Para cada criterio devuelve score entre 0 y 1 y explanation: una sola línea en español, sin sesgo político.
 Criterios:
 S (Específica): ¿define claramente qué se hará?
 M (Medible): ¿hay métricas o resultados observables en el texto?
 A (Alcanzable): ¿el texto permite juzgar realismo acotado (sin inventar presupuesto)?
-R (Relevante): ¿aborda un problema público claro en el fragmento?
 T (Temporal): ¿menciona plazos o horizontes temporales?
+(No incluyas criterio de relevancia temática.)
 Si algo es ambiguo, dilo en explanation y usa score moderado.
-Responde únicamente con un objeto JSON con claves S, M, A, R, T; cada una con score y explanation.`;
+Responde únicamente con un objeto JSON con claves S, M, A, T; cada una con score y explanation.`;
 
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -190,18 +187,6 @@ function evaluateSmartHeuristic(text: string): SmartEvaluation {
   const aScore = UNCERTAIN_A.score;
   const aExpl = UNCERTAIN_A.explanation;
 
-  const eduHints =
-    /educaci|escuela|universidad|docente|currículo|estudiante|alumn|formación|alfabet/i.test(
-      text
-    );
-  let rScore = 0.52;
-  let rExpl =
-    "El fragmento se orienta a política pública, pero el encaje temático exacto no está totalmente explicitado aquí.";
-  if (eduHints) {
-    rScore = 0.74;
-    rExpl = "El texto se centra en un ámbito público reconocible (p. ej. educación) en este extracto.";
-  }
-
   let tScore = 0.4;
   let tExpl = "No se identifican plazos o horizontes temporales explícitos en este fragmento.";
   if (
@@ -220,7 +205,6 @@ function evaluateSmartHeuristic(text: string): SmartEvaluation {
     S: { score: sScore, explanation: sExpl },
     M: { score: mScore, explanation: mExpl },
     A: { score: aScore, explanation: aExpl },
-    R: { score: rScore, explanation: rExpl },
     T: { score: tScore, explanation: tExpl },
   };
 }
