@@ -226,7 +226,7 @@ const Index = () => {
       </header>
 
       <div className="mx-auto grid min-h-0 w-full max-w-[1440px] flex-1 grid-cols-1 grid-rows-1 gap-4 overflow-hidden px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
-        <aside className="hidden min-h-0 space-y-6 lg:col-span-3 lg:block">
+        <aside className="hidden min-h-0 space-y-6 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] lg:col-span-3 lg:block">
           <ComparisonSidebarPanels
             selected={selected}
             onToggleCandidate={toggleCandidate}
@@ -252,12 +252,12 @@ const Index = () => {
                 </SheetTrigger>
                 <SheetContent
                   side="left"
-                  className="flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+                  className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-col gap-0 overflow-hidden p-0 sm:h-[100dvh] sm:max-w-md"
                 >
                   <SheetHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6 text-left">
                     <SheetTitle>Candidatos y categorías</SheetTitle>
                   </SheetHeader>
-                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))]">
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch] [padding-bottom:max(1rem,env(safe-area-inset-bottom))]">
                     <div className="space-y-6">
                       <ComparisonSidebarPanels
                         selected={selected}
