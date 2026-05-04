@@ -14,9 +14,9 @@ export function SourcesDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <BookOpen className="h-4 w-4" />
-          Fuentes
+        <Button type="button" variant="ghost" size="sm" className="gap-1.5 sm:gap-2" aria-label="Fuentes y transparencia">
+          <BookOpen className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Fuentes</span>
         </Button>
       </DialogTrigger>
       <DialogContent hideClose className="max-w-lg gap-0 overflow-hidden p-0">

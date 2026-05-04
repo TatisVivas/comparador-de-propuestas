@@ -14,9 +14,15 @@ export function PlatformHowToDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-          <CircleHelp className="h-4 w-4" />
-          Cómo usar
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground sm:gap-2"
+          aria-label="Cómo usar la plataforma"
+        >
+          <CircleHelp className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Cómo usar</span>
         </Button>
       </DialogTrigger>
       <DialogContent hideClose className="max-h-[85vh] max-w-2xl gap-0 overflow-hidden p-0">
