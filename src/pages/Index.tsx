@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { evaluateSmart, type SmartEvaluation } from "@/lib/smartEvaluation";
 import { SmartEvaluationBlock } from "@/components/SmartEvaluationBlock";
 import { PlatformHowToDialog } from "@/components/PlatformHowToDialog";
+import { SourcesDialog } from "@/components/SourcesDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,8 +17,6 @@ import {
   HeartPulse,
   Leaf,
   ScrollText,
-  BookOpen,
-  ArrowUpRight,
   Plus,
 } from "lucide-react";
 
@@ -85,9 +84,9 @@ const Index = () => {
   }, [showAnswer, selected]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-background text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
+      <header className="z-30 shrink-0 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -106,15 +105,12 @@ const Index = () => {
               Modo investigación
             </Badge>
             <PlatformHowToDialog />
-            <Button variant="ghost" size="sm" className="gap-2">
-              <BookOpen className="h-4 w-4" />
-              Fuentes
-            </Button>
+            <SourcesDialog />
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1440px] grid-cols-12 gap-6 px-6 py-6">
+      <div className="mx-auto grid min-h-0 w-full max-w-[1440px] flex-1 grid-cols-12 grid-rows-[minmax(0,1fr)] gap-6 px-6 py-6">
         {/* SIDEBAR */}
         <aside className="col-span-3 space-y-6">
           <section className="rounded-xl border border-border bg-card p-4">
@@ -198,25 +194,12 @@ const Index = () => {
               })}
             </ul>
           </section>
-
-          <section className="rounded-xl border border-dashed border-border bg-secondary/40 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-medium">Fuentes / Transparencia</h3>
-            </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Las respuestas se basan en los planes de gobierno oficiales publicados por cada candidatura. Cada cita incluye su referencia.
-            </p>
-            <button className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-foreground hover:underline">
-              Ver metodología <ArrowUpRight className="h-3 w-3" />
-            </button>
-          </section>
         </aside>
 
         {/* CHAT MAIN */}
-        <main className="col-span-9 flex min-h-[calc(100vh-7rem)] flex-col rounded-xl border border-border bg-card">
+        <main className="col-span-9 flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
           {/* Chat header */}
-          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
             <div>
               <h2 className="text-2xl">Asistente de Análisis</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
@@ -242,7 +225,7 @@ const Index = () => {
           </div>
 
           {/* Conversation */}
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
             {!showAnswer ? (
               <EmptyState onPick={(q) => { setInput(q); setShowAnswer(true); }} />
             ) : (
@@ -358,7 +341,7 @@ const Index = () => {
           </div>
 
           {/* Suggestions + Input */}
-          <div className="border-t border-border px-6 py-4">
+          <div className="shrink-0 border-t border-border px-6 py-4">
             <div className="mb-3 flex flex-wrap gap-2">
               {suggestions.map((s) => (
                 <button
