@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { candidates, candidateById, type CandidateId } from "@/data/candidates";
+import { useState, useEffect, useMemo } from "react";
+import { candidates, type CandidateId } from "@/data/candidates";
 import { cn } from "@/lib/utils";
+import { evaluateSmart, type SmartEvaluation } from "@/lib/smartEvaluation";
+import { SmartEvaluationBlock } from "@/components/SmartEvaluationBlock";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,17 +35,53 @@ const suggestions = [
   "Resumen de propuestas en salud",
 ];
 
+type SmartEntry = { status: "loading" } | { status: "done"; data: SmartEvaluation };
+
 const Index = () => {
   const [selected, setSelected] = useState<CandidateId[]>(["palo", "ivan", "abelardo"]);
   const [activeCategory, setActiveCategory] = useState<string>("educacion");
   const [showAnswer, setShowAnswer] = useState(true);
   const [input, setInput] = useState("Compara las propuestas en educación");
+  const [smartByProposal, setSmartByProposal] = useState<Record<string, SmartEntry>>({});
+
+  const topicLabel = useMemo(
+    () => categories.find((c) => c.id === activeCategory)?.label ?? activeCategory,
+    [activeCategory]
+  );
 
   const toggleCandidate = (id: CandidateId) => {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   };
 
   const activeCandidates = candidates.filter((c) => selected.includes(c.id));
+
+  useEffect(() => {
+    if (!showAnswer) {
+      setSmartByProposal({});
+      return;
+    }
+    let cancelled = false;
+    const act = candidates.filter((c) => selected.includes(c.id));
+    const pairs = act.flatMap((c) =>
+      educationBullets[c.id].map((proposal, i) => ({
+        key: `${c.id}-${i}`,
+        proposal,
+      }))
+    );
+    setSmartByProposal(
+      Object.fromEntries(pairs.map((p) => [p.key, { status: "loading" as const }]))
+    );
+    pairs.forEach(({ key, proposal }) => {
+      void evaluateSmart(proposal).then((data) => {
+        if (!cancelled) {
+          setSmartByProposal((prev) => ({ ...prev, [key]: { status: "done", data } }));
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showAnswer, selected]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -70,7 +108,6 @@ const Index = () => {
               <BookOpen className="h-4 w-4" />
               Fuentes
             </Button>
-            <Button size="sm" variant="outline">Iniciar sesión</Button>
           </div>
         </div>
       </header>
@@ -250,13 +287,20 @@ const Index = () => {
                             <div className="min-w-0">
                               <p className="text-sm font-semibold leading-tight">{c.nombre}</p>
                               <p className="text-xs text-muted-foreground">{c.partido}</p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">Eje: {topicLabel}</p>
                             </div>
                           </header>
-                          <ul className="ml-1 list-inside list-disc space-y-1 text-sm text-foreground/85">
-                            {educationBullets[c.id].map((b, i) => (
-                              <li key={i}>{b}</li>
-                            ))}
-                          </ul>
+                          <div className="space-y-3">
+                            {educationBullets[c.id].map((b, i) => {
+                              const smartKey = `${c.id}-${i}`;
+                              return (
+                                <div key={i} className="border-l-2 border-border/60 pl-3">
+                                  <p className="text-sm text-foreground/85">{b}</p>
+                                  <SmartEvaluationBlock entry={smartByProposal[smartKey]} />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </article>
                       ))}
                     </div>
