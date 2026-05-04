@@ -250,17 +250,22 @@ const Index = () => {
                     <PanelLeft className="h-4 w-4" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="flex w-full flex-col overflow-y-auto p-0 sm:max-w-md">
-                  <SheetHeader className="border-b border-border px-6 pb-4 pt-6 text-left">
+                <SheetContent
+                  side="left"
+                  className="flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+                >
+                  <SheetHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6 text-left">
                     <SheetTitle>Candidatos y categorías</SheetTitle>
                   </SheetHeader>
-                  <div className="space-y-6 px-4 py-4">
-                    <ComparisonSidebarPanels
-                      selected={selected}
-                      onToggleCandidate={toggleCandidate}
-                      activeCategory={activeCategory}
-                      onSelectCategory={selectCategory}
-                    />
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))]">
+                    <div className="space-y-6">
+                      <ComparisonSidebarPanels
+                        selected={selected}
+                        onToggleCandidate={toggleCandidate}
+                        activeCategory={activeCategory}
+                        onSelectCategory={selectCategory}
+                      />
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
