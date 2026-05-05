@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import { candidates, type CandidateId } from "@/data/candidates";
 import { cn } from "@/lib/utils";
+import { queryRag } from "@/lib/ragApi";
 import { evaluateSmart, type SmartEvaluation } from "@/lib/smartEvaluation";
 import { SmartEvaluationBlock } from "@/components/SmartEvaluationBlock";
 import { PlatformHowToDialog } from "@/components/PlatformHowToDialog";
@@ -21,8 +22,10 @@ import {
   Plus,
   PanelLeft,
 } from "lucide-react";
+import { toast } from "sonner";
 
 const categories = [
+  { id: "all", label: "Todas las categorías", icon: ScrollText },
   { id: "economia", label: "Economía", icon: Coins },
   { id: "educacion", label: "Educación", icon: GraduationCap },
   { id: "salud", label: "Salud", icon: HeartPulse },
@@ -146,10 +149,15 @@ function ComparisonSidebarPanels({
 
 const Index = () => {
   const [selected, setSelected] = useState<CandidateId[]>(["palo", "ivan", "abelardo"]);
-  const [activeCategory, setActiveCategory] = useState<string>("educacion");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(true);
+  const [showAnswer, setShowAnswer] = useState(false);
   const [input, setInput] = useState("Compara las propuestas en educación");
+  const [lastQuery, setLastQuery] = useState("");
+  const [ragAnswer, setRagAnswer] = useState("");
+  const [ragProposals, setRagProposals] = useState<{ candidate: string; text: string }[]>([]);
+  const [ragLoading, setRagLoading] = useState(false);
+  const [ragError, setRagError] = useState<string | null>(null);
   const [smartByProposal, setSmartByProposal] = useState<Record<string, SmartEntry>>({});
 
   const topicLabel = useMemo(
@@ -169,18 +177,15 @@ const Index = () => {
   const activeCandidates = candidates.filter((c) => selected.includes(c.id));
 
   useEffect(() => {
-    if (!showAnswer) {
+    if (!ragProposals.length) {
       setSmartByProposal({});
       return;
     }
     let cancelled = false;
-    const act = candidates.filter((c) => selected.includes(c.id));
-    const pairs = act.flatMap((c) =>
-      educationBullets[c.id].map((proposal, i) => ({
-        key: `${c.id}-${i}`,
-        proposal,
-      }))
-    );
+    const pairs = ragProposals.map((p, i) => ({
+      key: `${p.candidate}-${i}`,
+      proposal: p.text,
+    }));
     setSmartByProposal(
       Object.fromEntries(pairs.map((p) => [p.key, { status: "loading" as const }]))
     );
@@ -194,7 +199,33 @@ const Index = () => {
     return () => {
       cancelled = true;
     };
-  }, [showAnswer, selected]);
+  }, [ragProposals]);
+
+  const runQuery = async (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setShowAnswer(true);
+    setLastQuery(trimmed);
+    setRagLoading(true);
+    setRagError(null);
+    setRagAnswer("");
+    setRagProposals([]);
+    try {
+      const data = await queryRag({
+        question: trimmed,
+        candidateIds: selected,
+        category: activeCategory,
+      });
+      setRagAnswer(data.answer);
+      setRagProposals(data.proposals ?? []);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo contactar al servidor.";
+      setRagError(msg);
+      toast.error("Error al consultar el backend", { description: msg });
+    } finally {
+      setRagLoading(false);
+    }
+  };
 
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-background text-foreground">
@@ -299,113 +330,91 @@ const Index = () => {
           {/* Conversation */}
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
             {!showAnswer ? (
-              <EmptyState onPick={(q) => { setInput(q); setShowAnswer(true); }} />
+              <EmptyState
+                onPick={(q) => {
+                  setInput(q);
+                  void runQuery(q);
+                }}
+              />
             ) : (
               <>
-                {/* User message */}
                 <div className="flex justify-end">
                   <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm text-primary-foreground">
-                    Compara las propuestas en educación
+                    {lastQuery}
                   </div>
                 </div>
 
-                {/* AI message */}
                 <div className="flex gap-3">
                   <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
                     <Sparkles className="h-4 w-4 text-foreground" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-5">
-                    <div>
-                      <p className="text-sm leading-relaxed text-foreground">
-                        Aquí tienes una comparación neutral de las propuestas en{" "}
-                        <span className="font-semibold">educación</span> de los candidatos seleccionados, según sus planes oficiales:
-                      </p>
-                    </div>
+                    {ragLoading ? (
+                      <p className="text-sm text-muted-foreground">Consultando documentos y generando respuesta…</p>
+                    ) : ragError ? (
+                      <p className="text-sm text-destructive">{ragError}</p>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{ragAnswer}</p>
+                        </div>
 
-                    {/* Per-candidate bullets */}
-                    <div className="grid gap-3">
-                      {activeCandidates.map((c) => (
-                        <article
-                          key={c.id}
-                          className="rounded-lg border border-border bg-background/60 p-4"
-                          style={{
-                            borderLeft: `3px solid hsl(var(${c.colorVar}))`,
-                          }}
-                        >
-                          <header className="mb-2 flex items-center gap-2.5">
-                            <img
-                              src={c.foto}
-                              alt={c.nombre}
-                              loading="lazy"
-                              width={28}
-                              height={28}
-                              className="h-7 w-7 rounded-full object-cover"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold leading-tight">{c.nombre}</p>
-                              <p className="text-xs text-muted-foreground">{c.partido}</p>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">Eje: {topicLabel}</p>
-                            </div>
-                          </header>
-                          <div className="space-y-3">
-                            {educationBullets[c.id].map((b, i) => {
-                              const smartKey = `${c.id}-${i}`;
-                              return (
-                                <div key={i} className="border-l-2 border-border/60 pl-3">
-                                  <p className="text-sm text-foreground/85">{b}</p>
-                                  <SmartEvaluationBlock entry={smartByProposal[smartKey]} />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
+                        <div className="grid gap-3">
+                          {activeCandidates.map((c) => {
+                            const parts = ragProposals
+                              .map((p, i) => ({ p, i }))
+                              .filter(({ p }) => p.candidate === c.id);
+                            return (
+                              <article
+                                key={c.id}
+                                className="rounded-lg border border-border bg-background/60 p-4"
+                                style={{
+                                  borderLeft: `3px solid hsl(var(${c.colorVar}))`,
+                                }}
+                              >
+                                <header className="mb-2 flex items-center gap-2.5">
+                                  <img
+                                    src={c.foto}
+                                    alt={c.nombre}
+                                    loading="lazy"
+                                    width={28}
+                                    height={28}
+                                    className="h-7 w-7 rounded-full object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold leading-tight">{c.nombre}</p>
+                                    <p className="text-xs text-muted-foreground">{c.partido}</p>
+                                    <p className="mt-0.5 text-[10px] text-muted-foreground">Eje: {topicLabel}</p>
+                                  </div>
+                                </header>
+                                {parts.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">
+                                    Sin fragmentos recuperados para este candidato con los filtros actuales.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {parts.map(({ p, i }) => {
+                                      const smartKey = `${p.candidate}-${i}`;
+                                      return (
+                                        <div key={smartKey} className="border-l-2 border-border/60 pl-3">
+                                          <p className="text-sm text-foreground/85">{p.text}</p>
+                                          <SmartEvaluationBlock entry={smartByProposal[smartKey]} />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </article>
+                            );
+                          })}
+                        </div>
 
-                    {/* Comparison table */}
-                    <div className="overflow-hidden rounded-lg border border-border">
-                      <div className="border-b border-border bg-secondary/50 px-4 py-2.5">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Tabla comparativa · diferencias clave
+                        <p className="text-xs text-muted-foreground">
+                          Fuentes: PDF indexados en el servidor (por candidato y categoría). La respuesta resume fragmentos
+                          recuperados; revisa las citas en cada tarjeta.
                         </p>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                              <th className="px-4 py-2.5 font-medium">Eje</th>
-                              {activeCandidates.map((c) => (
-                                <th key={c.id} className="px-4 py-2.5 font-medium">
-                                  <span className="flex items-center gap-1.5">
-                                    <span
-                                      className="h-2 w-2 rounded-full"
-                                      style={{ backgroundColor: `hsl(var(${c.colorVar}))` }}
-                                    />
-                                    {c.nombre.split(" ")[0]}
-                                  </span>
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {comparisonRows.map((row) => (
-                              <tr key={row.eje} className="border-b border-border last:border-0">
-                                <td className="px-4 py-3 font-medium text-foreground/90">{row.eje}</td>
-                                {activeCandidates.map((c) => (
-                                  <td key={c.id} className="px-4 py-3 text-foreground/75">
-                                    {row.values[c.id] ?? "—"}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground">
-                      Fuentes: Planes de gobierno oficiales registrados ante la autoridad electoral. Última actualización: marzo 2026.
-                    </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </>
@@ -418,7 +427,11 @@ const Index = () => {
               {suggestions.map((s) => (
                 <button
                   key={s}
-                  onClick={() => { setInput(s); setShowAnswer(true); }}
+                  type="button"
+                  onClick={() => {
+                    setInput(s);
+                    void runQuery(s);
+                  }}
                   className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground/80 transition-colors hover:border-foreground/30 hover:bg-secondary"
                 >
                   {s}
@@ -426,7 +439,10 @@ const Index = () => {
               ))}
             </div>
             <form
-              onSubmit={(e) => { e.preventDefault(); setShowAnswer(true); }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void runQuery(input);
+              }}
               className="flex items-end gap-2 rounded-xl border border-border bg-background p-2 focus-within:border-foreground/30"
             >
               <textarea
@@ -436,9 +452,9 @@ const Index = () => {
                 placeholder="Haz una pregunta sobre los planes de gobierno…"
                 className="flex-1 resize-none bg-transparent px-2 py-2 text-sm placeholder:text-muted-foreground focus:outline-none"
               />
-              <Button type="submit" size="sm" className="gap-1.5">
+              <Button type="submit" size="sm" className="gap-1.5" disabled={ragLoading}>
                 <Send className="h-3.5 w-3.5" />
-                Enviar
+                {ragLoading ? "Enviando…" : "Enviar"}
               </Button>
             </form>
             <p className="mt-2 text-[11px] text-muted-foreground">
@@ -458,12 +474,14 @@ const EmptyState = ({ onPick }: { onPick: (q: string) => void }) => (
     </div>
     <h3 className="text-xl sm:text-2xl">Haz una pregunta sobre los planes de gobierno…</h3>
     <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-      Selecciona uno o varios candidatos en el panel izquierdo y formula tu consulta. Las respuestas se basan en documentos oficiales.
+      Selecciona candidatos y categoría a la izquierda. El backend usa los PDF en{" "}
+      <code className="rounded bg-muted px-1 py-0.5 text-[11px]">backend/data/&lt;id&gt;/</code> (subcarpetas por tema opcionales).
     </p>
     <div className="mt-6 grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
       {suggestions.map((s) => (
         <button
           key={s}
+          type="button"
           onClick={() => onPick(s)}
           className="rounded-lg border border-border bg-background p-3 text-left text-sm text-foreground/80 hover:border-foreground/30 hover:bg-secondary"
         >
@@ -473,66 +491,5 @@ const EmptyState = ({ onPick }: { onPick: (q: string) => void }) => (
     </div>
   </div>
 );
-
-const educationBullets: Record<CandidateId, string[]> = {
-  palo: [
-    "Aumento gradual del presupuesto educativo al 6% del PIB en 4 años.",
-    "Evaluación docente por desempeño con incentivos salariales.",
-    "Becas competitivas para educación técnica y universitaria.",
-  ],
-  abelardo: [
-    "Educación pública gratuita en todos los niveles, incluido superior.",
-    "Programa nacional de alimentación escolar universal.",
-    "Contratación masiva de docentes en zonas rurales.",
-  ],
-  sergio: [
-    "Modelo mixto público-privado con bonos educativos por familia.",
-    "Inversión prioritaria en infraestructura escolar urbana.",
-    "Convenios con municipios para gestión descentralizada.",
-  ],
-  ivan: [
-    "Currículo nacional con énfasis en ciencia, ética y sostenibilidad.",
-    "Internet gratuito en todas las escuelas públicas en 3 años.",
-    "Formación docente continua certificada por universidades públicas.",
-  ],
-  lucia: [
-    "Alianzas público-privadas para innovación educativa y EdTech.",
-    "Reforma curricular orientada a habilidades digitales y emprendimiento.",
-    "Sistema de créditos transferibles entre instituciones.",
-  ],
-};
-
-const comparisonRows: { eje: string; values: Partial<Record<CandidateId, string>> }[] = [
-  {
-    eje: "Modelo de gestión",
-    values: {
-      palo: "Mixto, con autonomía",
-      abelardo: "Estatal centralizado",
-      sergio: "Descentralizado municipal",
-      ivan: "Estatal con autonomía",
-      lucia: "Mixto público-privado",
-    },
-  },
-  {
-    eje: "Inversión proyectada",
-    values: {
-      palo: "6% del PIB",
-      abelardo: "7% del PIB",
-      sergio: "5% del PIB",
-      ivan: "6,5% del PIB",
-      lucia: "5,5% del PIB",
-    },
-  },
-  {
-    eje: "Énfasis curricular",
-    values: {
-      palo: "Técnico-productivo",
-      abelardo: "Universal e inclusivo",
-      sergio: "Cívico y vocacional",
-      ivan: "Ciencia y ambiente",
-      lucia: "Digital y emprendedor",
-    },
-  },
-];
 
 export default Index;
