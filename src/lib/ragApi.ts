@@ -8,7 +8,7 @@ function queryUrl(): string {
   const base = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "");
   if (base) return `${base}/query`;
   if (import.meta.env.DEV) return "/api/query";
-  // Producción monolito (Docker / mismo host): mismo origen
+  // Producción monolito (mismo host sirve UI + API): mismo origen
   return "/query";
 }
 
